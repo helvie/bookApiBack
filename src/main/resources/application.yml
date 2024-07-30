@@ -1,0 +1,27 @@
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/bibli
+    username: root
+    password: 
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    database-platform: org.hibernate.dialect.MySQLDialect
+    
+server:
+  port: 8084
+
+logging:
+  level:
+    org.springframework.security: DEBUG
+    com.bookApi: TRACE
+
+external:
+  api:
+    key: "https://www.googleapis.com/books/v1/volumes?q=isbn:%s&key=AIzaSyBcGI9xZ-3NMLieEvOc6gA4RzqX1MacVWI"
+
+security:
+  jwt:
+    secret-key: 'uZvpyeuTZ1XJkkbGn873o2QiB3KP9lpENHh0rsRgHGA'
+    expiration-time: 3600000
