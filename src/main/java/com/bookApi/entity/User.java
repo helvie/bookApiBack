@@ -28,6 +28,13 @@ public class User implements UserDetails {
     private String password;
 
     private String role;
+    
+    public void setEnabled(boolean enabled) {
+		this.enabled = enabled;
+	}
+
+	@Column(nullable = false)
+    private boolean enabled; 
 
     @CreationTimestamp
     @Column(updatable = false, name = "created_at")

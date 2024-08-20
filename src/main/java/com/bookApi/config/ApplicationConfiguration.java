@@ -10,13 +10,13 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
-import com.bookApi.DAO.UserDAO;
+import com.bookApi.repository.UserRepository;
 
 @Configuration
 public class ApplicationConfiguration {
-    private final UserDAO userDAO;
+    private final UserRepository userDAO;
 
-    public ApplicationConfiguration(UserDAO userDAO) {
+    public ApplicationConfiguration(UserRepository userDAO) {
         this.userDAO = userDAO;
     }
 
