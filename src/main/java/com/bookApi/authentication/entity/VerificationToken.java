@@ -1,6 +1,8 @@
-package com.bookApi.entity;
+package com.bookApi.authentication.entity;
 
 import java.util.Date;
+
+import com.bookApi.entity.User;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;

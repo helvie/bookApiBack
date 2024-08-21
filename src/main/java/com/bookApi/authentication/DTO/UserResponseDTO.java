@@ -1,4 +1,4 @@
-package com.bookApi.DTO;
+package com.bookApi.authentication.DTO;
 
 public class UserResponseDTO {
     private String firstname;
@@ -6,13 +6,15 @@ public class UserResponseDTO {
     private String email;
     private String role;
     private String token;
+    private String refreshToken;
 
-    public UserResponseDTO(String firstname, String lastname, String email, String role, String token) {
+    public UserResponseDTO(String firstname, String lastname, String email, String role, String token, String refreshToken) {
         this.firstname = firstname;
         this.lastname = lastname;
         this.email = email;
         this.role = role;
         this.token = token;
+        this.refreshToken = refreshToken;
     }
     
     
@@ -58,4 +60,16 @@ public class UserResponseDTO {
     public void setToken(String token) {
         this.token = token;
     }
+
+
+
+	public String getRefreshToken() {
+		return refreshToken;
+	}
+
+
+
+	public void setRefreshToken(String refreshToken) {
+		this.refreshToken = refreshToken;
+	}
 }

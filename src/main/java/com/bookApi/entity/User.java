@@ -2,6 +2,7 @@ package com.bookApi.entity;
 
 import jakarta.persistence.*;
 import java.util.List;
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.Date;
 import org.springframework.security.core.GrantedAuthority;
@@ -20,6 +21,10 @@ public class User implements UserDetails {
 
     private String lastname;
     private String firstname;
+    
+    private int failedAttempts;
+    private boolean accountLocked;
+    private LocalDateTime lockTime;
 
     @Column(unique = true, length = 100, nullable = false)
     private String email;
@@ -27,7 +32,9 @@ public class User implements UserDetails {
     @Column(nullable = false)
     private String password;
 
-    private String role;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Role role;
     
     public void setEnabled(boolean enabled) {
 		this.enabled = enabled;
@@ -63,6 +70,7 @@ public class User implements UserDetails {
     private List<Message> receivedMessages;
 
     public User() {}
+    
 
     // Getters and setters
 
@@ -104,14 +112,6 @@ public class User implements UserDetails {
 
     public void setPassword(String password) {
         this.password = password;
-    }
-
-    public String getRole() {
-        return role;
-    }
-
-    public void setRole(String role) {
-        this.role = role;
     }
 
     public List<RequestedBook> getRequestedBooks() {
@@ -164,9 +164,9 @@ public class User implements UserDetails {
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        // Implement your logic for roles/authorities here if needed
-        return List.of();
+        return List.of(() -> "ROLE_" + role.name());
     }
+    
 
     @Override
     public String getUsername() {
@@ -190,6 +190,44 @@ public class User implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        return true;
+        return enabled;
     }
+
+	public Role getRole() {
+		return role;
+	}
+
+	public void setRole(Role role) {
+		this.role = role;
+	}
+
+
+	public int getFailedAttempts() {
+		return failedAttempts;
+	}
+
+
+	public void setFailedAttempts(int failedAttempts) {
+		this.failedAttempts = failedAttempts;
+	}
+
+
+	public boolean isAccountLocked() {
+		return accountLocked;
+	}
+
+
+	public void setAccountLocked(boolean accountLocked) {
+		this.accountLocked = accountLocked;
+	}
+
+
+	public LocalDateTime getLockTime() {
+		return lockTime;
+	}
+
+
+	public void setLockTime(LocalDateTime lockTime) {
+		this.lockTime = lockTime;
+	}
 }

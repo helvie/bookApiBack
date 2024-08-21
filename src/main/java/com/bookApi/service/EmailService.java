@@ -4,12 +4,8 @@ import jakarta.annotation.PostConstruct;
 import jakarta.mail.*;
 import jakarta.mail.internet.InternetAddress;
 import jakarta.mail.internet.MimeMessage;
-
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.thymeleaf.TemplateEngine;
-import org.thymeleaf.context.Context;
 
 import java.util.Properties;
 import java.util.logging.Level;
@@ -17,7 +13,7 @@ import java.util.logging.Logger;
 
 @Service
 public class EmailService {
-    
+
     private static final Logger log = Logger.getLogger(EmailService.class.getName());
 
     @Value("${spring.mail.username}")
@@ -32,13 +28,7 @@ public class EmailService {
     @Value("${spring.mail.port}")
     private int mailPort;
 
-    private final TemplateEngine templateEngine;
     private Session mailSession;
-
-    @Autowired
-    public EmailService(TemplateEngine templateEngine) {
-        this.templateEngine = templateEngine;
-    }
 
     @PostConstruct
     private void init() {
@@ -60,9 +50,9 @@ public class EmailService {
                 }
             });
     }
-    
-    
-    
+
+    //------------------------------- SEND EMAIL -------------------------------
+
     public boolean sendEmail(String recipientEmail, String subject, String htmlBody) {
         try {
             Message message = new MimeMessage(mailSession);
@@ -71,44 +61,13 @@ public class EmailService {
             message.setSubject(subject);
             message.setContent(htmlBody, "text/html; charset=utf-8");
             Transport.send(message);
-            log.info("Email sent successfully!");
-            return true;  // Email sent successfully
+            log.info("Email envoyé avec succès !");
+            return true;
         } catch (MessagingException e) {
-            log.log(Level.SEVERE, "Failed to send email: {0}", e.getMessage());
-            return false; // Failed to send email
+            log.log(Level.SEVERE, "Échec de l'envoi de l'email : {0}", e.getMessage());
+            return false;
         }
-    }
-
-    public void sendVerificationEmail(String recipientEmail, String name, String verificationLink) {
-        Context context = new Context();
-        context.setVariable("name", name);
-        context.setVariable("verificationLink", verificationLink);
-        String htmlBody = templateEngine.process("verification-email", context);
-        sendEmail(recipientEmail, "Please verify your email address", htmlBody);
-    }
-
-    public boolean sendPasswordResetEmail(String recipientEmail, String name, String resetLink) {
-        Context context = new Context();
-        context.setVariable("name", name);
-        context.setVariable("resetLink", resetLink);
-        String htmlBody = templateEngine.process("reset-password-email", context);
-        
-        log.info("Generated email body: " + htmlBody);
-        
-        boolean emailSent = sendEmail(recipientEmail, "Password Reset Request", htmlBody);
-        if (emailSent) {
-            log.info("Password reset email sent to " + recipientEmail);
-        } else {
-            log.severe("Failed to send password reset email to " + recipientEmail);
-        }
-        return emailSent;
-    }
-
-    public void sendRegistrationConfirmationEmail(String recipientEmail, String name) {
-        Context context = new Context();
-        context.setVariable("name", name);
-        String htmlBody = templateEngine.process("registration-confirmation-email", context);
-        sendEmail(recipientEmail, "Registration Confirmation", htmlBody);
     }
 }
+
 

@@ -1,9 +1,10 @@
-package com.bookApi.controller;
+package com.bookApi.authentication.controller;
 
+import com.bookApi.authentication.entity.VerificationToken;
+import com.bookApi.authentication.repository.VerificationTokenRepository;
 import com.bookApi.entity.User;
-import com.bookApi.entity.VerificationToken;
 import com.bookApi.repository.UserRepository;
-import com.bookApi.repository.VerificationTokenRepository;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -11,8 +12,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Optional;
-import java.util.logging.Logger;
-
 
 @RestController
 @RequestMapping("/api/auth")
@@ -26,8 +25,16 @@ public class VerificationController {
         this.tokenRepository = tokenRepository;
     }
 
+    //------------------------ VÉRIFICATION DU COMPTE ------------------------
+
+    // Vérification du compte utilisateur en utilisant le token de vérification.
+    // @param token le token de vérification
+    // @return ResponseEntity avec le résultat de la vérification
+
     @GetMapping("/verify")
     public ResponseEntity<String> verifyAccount(@RequestParam("token") String token) {
+    	
+        // Recherche du token
         Optional<VerificationToken> verificationToken = tokenRepository.findByToken(token);
 
         if (verificationToken.isEmpty()) {
@@ -40,13 +47,16 @@ public class VerificationController {
             return ResponseEntity.badRequest().body("Token expiré");
         }
 
+        // Activation de l'utilisateur
         User user = tokenEntity.getUser();
         user.setEnabled(true);
         userRepository.save(user);
 
+        // Suppression du token
         tokenRepository.delete(tokenEntity);
 
         return ResponseEntity.ok("Compte vérifié avec succès !");
     }
 }
+
 
