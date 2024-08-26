@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Email de Vérification</title>
+</head>
+<body>
+    <h1>Bienvenue, <span th:text="${name}">Nom</span>!</h1>
+    <p>Merci de vous être inscrit. Veuillez vérifier votre adresse e-mail en cliquant sur le lien ci-dessous :</p>
+    <p>
+        <a th:href="${verificationLink}">Vérifier mon adresse e-mail</a>
+    </p>
+    <p>Ce lien expirera dans 24 heures.</p>
+</body>
+</html>
