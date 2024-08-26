@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.bookApi.authentication.entity.RefreshToken;
 import com.bookApi.authentication.repository.RefreshTokenRepository;
 import com.bookApi.entity.User;
+import com.bookApi.exception.InvalidTokenException;
 
 @Service
 public class RefreshTokenService {
@@ -53,7 +54,7 @@ public class RefreshTokenService {
     public boolean verifyExpiration(RefreshToken token) {
         if (token.getExpiryDate().before(new Date())) {  // Vérifie si la date d'expiration est passée
             refreshTokenRepository.delete(token);  // Supprime le token expiré de la base de données
-            return false;
+            throw new InvalidTokenException("Le token de rafraîchissement a expiré."); // Exception personnalisée
         }
         return true;
     }

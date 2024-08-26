@@ -1,6 +1,7 @@
 package com.bookApi.authentication.service;
 
 import java.util.Date;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -9,6 +10,8 @@ import org.springframework.stereotype.Service;
 import com.bookApi.authentication.entity.PasswordResetToken;
 import com.bookApi.authentication.repository.PasswordResetTokenRepository;
 import com.bookApi.entity.User;
+import com.bookApi.exception.InvalidTokenException;
+import com.bookApi.exception.UserNotFoundException;
 import com.bookApi.repository.UserRepository;
 import com.bookApi.authentication.service.AuthenticationEmailService;
 
@@ -33,14 +36,23 @@ public class PasswordResetService {
     // @param email Adresse email de l'utilisateur.
     public void requestPasswordReset(String email) {
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new UserNotFoundException("Utilisateur non trouvé."));
 
-        String token = UUID.randomUUID().toString();  // Génère un token de réinitialisation unique
+        // Chercher un token existant pour cet utilisateur
+        Optional<PasswordResetToken> existingToken = tokenRepository.findByUserAndExpiryDateAfter(user, new Date());
 
-        PasswordResetToken resetToken = new PasswordResetToken(token, user, new Date(System.currentTimeMillis() + 3600000)); // Création du token avec une expiration d'une heure
-        tokenRepository.save(resetToken);  
+        PasswordResetToken resetToken;
+        if (existingToken.isPresent()) {
+            // Réutiliser le token existant
+            resetToken = existingToken.get();
+        } else {
+            // Créer un nouveau token si aucun n'existe ou si le précédent est expiré
+            String token = UUID.randomUUID().toString();
+            resetToken = new PasswordResetToken(token, user, new Date(System.currentTimeMillis() + 3600000));
+            tokenRepository.save(resetToken);
+        }
 
-        String resetLink = "http://localhost:4200/reset-password?token=" + token;  // Génération du lien de réinitialisation
+        String resetLink = "http://localhost:4200/auth/reset-password?token=" + resetToken.getToken();  // Génération du lien de réinitialisation
         emailService.sendPasswordResetEmail(user.getEmail(), user.getFirstname(), resetLink); 
     }
     
@@ -51,10 +63,10 @@ public class PasswordResetService {
     // @param newPassword Nouveau mot de passe.
     public void resetPassword(String token, String newPassword) {
         PasswordResetToken resetToken = tokenRepository.findByToken(token)
-                .orElseThrow(() -> new RuntimeException("Invalid token"));  // Vérifie si le token est valide
+                .orElseThrow(() -> new InvalidTokenException("Token invalide."));  // Vérifie si le token est valide
 
         if (resetToken.isExpired()) {
-            throw new RuntimeException("Token expired");  // Vérifie si le token est expiré
+            throw new InvalidTokenException("Le token de réinitialisation a expiré.");  // Vérifie si le token est expiré
         }
 
         User user = resetToken.getUser();
@@ -73,7 +85,7 @@ public class PasswordResetService {
     // @return true si le mot de passe a été changé avec succès, sinon false.
     public boolean changePassword(String username, String oldPassword, String newPassword) {
         User user = userRepository.findByEmail(username)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new UserNotFoundException("Utilisateur non trouvé."));
 
         if (!passwordEncoder.matches(oldPassword, user.getPassword())) {
             return false;  // Vérifie si l'ancien mot de passe est correct

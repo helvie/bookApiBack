@@ -2,6 +2,8 @@ package com.bookApi.authentication.service;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -11,17 +13,23 @@ import com.bookApi.authentication.DTO.UserResponseDTO;
 import com.bookApi.authentication.entity.RefreshToken;
 import com.bookApi.authentication.entity.VerificationToken;
 import com.bookApi.authentication.repository.VerificationTokenRepository;
+import com.bookApi.exception.AuthenticationFailedException;
+import com.bookApi.exception.EmailSendingException;
+import com.bookApi.exception.InvalidTokenException;
+import com.bookApi.exception.UserAlreadyExistsException;
 import com.bookApi.entity.Role;
 import com.bookApi.entity.User;
+import com.bookApi.exception.AccountLockedException;
+import com.bookApi.exception.UserNotFoundException;
 import com.bookApi.repository.UserRepository;
 
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Date;
 import java.util.Optional;
 import java.util.UUID;
+
 
 
  // Service pour la gestion de l'authentification des utilisateurs, de l'inscription et des tokens.
@@ -60,138 +68,153 @@ public class AuthenticationService {
   
 //----------------------------------- SIGNUP -----------------------------------
 
-    // Inscription d'un nouvel utilisateur et envoi d'un email de vérification.
-    // @param input Données d'inscription.
-    // @return UserResponseDTO contenant les tokens JWT et de rafraîchissement.
-    
-    public UserResponseDTO signup(RegisterUserDTO input) {
-        try {
-            // Création et enregistrement d'un nouvel utilisateur
-            User user = new User();
-            user.setFirstname(input.getFirstname());
-            user.setLastname(input.getLastname());
-            user.setEmail(input.getEmail());
-            user.setPassword(passwordEncoder.encode(input.getPassword()));
-            user.setRole(Role.USER);
-            user.setEnabled(false); // Le compte est désactivé jusqu'à vérification
+ // Inscription d'un nouvel utilisateur et envoi d'un email de vérification.
+ // @param input Données d'inscription.
+ // @return UserResponseDTO contenant les tokens JWT et de rafraîchissement.
 
-            // Enregistrement de l'utilisateur dans la base de données
-            User savedUser = userRepository.save(user);
+ public UserResponseDTO signup(RegisterUserDTO input) {
+     try {
+         // Vérification si l'utilisateur existe déjà
+         if (userRepository.findByEmail(input.getEmail()).isPresent()) {
+             throw new UserAlreadyExistsException("Cet utilisateur existe déjà");
+         }
 
-            // Génération d'un token de vérification
-            String token = UUID.randomUUID().toString();
-            VerificationToken verificationToken = new VerificationToken(token, savedUser, new Date(System.currentTimeMillis() + 86400000)); // Expiration dans 24 heures
-            verificationTokenRepository.save(verificationToken);
+         // Création et enregistrement d'un nouvel utilisateur
+         User user = new User();
+         user.setFirstname(input.getFirstname());
+         user.setLastname(input.getLastname());
+         user.setEmail(input.getEmail());
+         user.setPassword(passwordEncoder.encode(input.getPassword()));
+         user.setRole(Role.USER);
+         user.setEnabled(false); // Le compte est désactivé jusqu'à vérification
 
-            // Construction du lien de vérification
-            String verificationLink = "http://localhost:8084/api/auth/verify?token=" + token;
+         // Enregistrement de l'utilisateur dans la base de données
+         User savedUser = userRepository.save(user);
 
-            // Envoi de l'email de vérification via le service EmailService
-            emailService.sendEmail(
-                savedUser.getEmail(), 
-                "Verification Email", 
-                "Please verify your account using this link: " + verificationLink
-            );
+         // Génération d'un token de vérification
+         String token = UUID.randomUUID().toString();
+         VerificationToken verificationToken = new VerificationToken(token, savedUser, new Date(System.currentTimeMillis() + 86400000)); // Expiration dans 24 heures
+         verificationTokenRepository.save(verificationToken);
 
-            // Génération du token JWT pour l'utilisateur
-            String jwtToken = jwtService.generateToken(savedUser);
-            String roleString = savedUser.getRole().name();
+         // Construction du lien de vérification
+         String verificationLink = "http://localhost:8084/api/auth/verify?token=" + token;
 
-            // Génération du token de rafraîchissement pour l'utilisateur
-            String refreshToken = refreshTokenService.createRefreshToken(savedUser).getToken();
+         // Envoi de l'email de vérification via le service EmailService
+         try {
+             emailService.sendEmail(
+                 savedUser.getEmail(), 
+                 "Email de vérification", 
+                 "Veuillez vérifier votre compte en utilisant ce lien : " + verificationLink
+             );
+         } catch (Exception e) {
+             throw new EmailSendingException("Échec de l'envoi de l'email de vérification");
+         }
 
-            // Retour d'un UserResponseDTO avec les tokens JWT et de rafraîchissement
-            return new UserResponseDTO(
-                savedUser.getFirstname(),
-                savedUser.getLastname(),
-                savedUser.getEmail(),
-                roleString,
-                jwtToken,
-                refreshToken
-            );
-        } catch (Exception e) {
-            throw new RuntimeException("Erreur lors de l'inscription : " + e.getMessage());
-        }
-    }
+         // Génération du token JWT pour l'utilisateur
+         String jwtToken = jwtService.generateToken(savedUser);
+         String roleString = savedUser.getRole().name();
+
+         // Génération du token de rafraîchissement pour l'utilisateur
+         String refreshToken = refreshTokenService.createRefreshToken(savedUser).getToken();
+
+         // Retour d'un UserResponseDTO avec les tokens JWT et de rafraîchissement
+         return new UserResponseDTO(
+             savedUser.getFirstname(),
+             savedUser.getLastname(),
+             savedUser.getEmail(),
+             roleString,
+             jwtToken,
+             refreshToken
+         );
+     } catch (UserAlreadyExistsException | EmailSendingException e) {
+         throw e; // Relancer les exceptions spécifiques
+     } catch (Exception e) {
+         throw new RuntimeException("Erreur lors de l'inscription : " + e.getMessage());
+     }
+ }
+
     
 //--------------------------------- AUTHENTICATE ---------------------------------
 
 
-    // Authentification d'un utilisateur et génération des tokens JWT et de rafraîchissement.
-    // @param input Données de connexion.
-    // @return UserResponseDTO contenant les tokens JWT et de rafraîchissement.
-     
-    public UserResponseDTO authenticate(LoginUserDTO input) {
-        try {
-            // Chargement de l'utilisateur depuis la base de données
-            User user = userRepository.findByEmail(input.getEmail())
-                    .orElseThrow(() -> new RuntimeException("Utilisateur non trouvé"));
+ // Authentification d'un utilisateur et génération des tokens JWT et de rafraîchissement.
+ // @param input Données de connexion.
+ // @return UserResponseDTO contenant les tokens JWT et de rafraîchissement.
 
-            // Vérification si le compte est verrouillé
-            if (user.isAccountLocked()) {
-                if (unlockTimeExpired(user)) {
-                    unlockAccount(user);
-                } else {
-                    throw new RuntimeException("Compte verrouillé. Réessayez plus tard.");
-                }
-            }
+ public UserResponseDTO authenticate(LoginUserDTO input) {
+     try {
+         // Chargement de l'utilisateur depuis la base de données
+    	 User user = userRepository.findByEmail(input.getEmail())
+    		        .orElseThrow(() -> new UserNotFoundException("Utilisateur non trouvé"));
+    	 
+         // Vérification si le compte est verrouillé
+         if (user.isAccountLocked()) {
+             if (unlockTimeExpired(user)) {
+                 unlockAccount(user);
+             } else {
+                 throw new AccountLockedException("Compte verrouillé. Réessayez plus tard.");
+             }
+         }
 
-            // Authentification de l'utilisateur
-            try {
-                authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(
-                        input.getEmail(),
-                        input.getPassword()
-                    )
-                );
 
-                // Réinitialisation des tentatives échouées après une connexion réussie
-                resetFailedAttempts(user);
+         // Authentification de l'utilisateur
+         try {
+             authenticationManager.authenticate(
+                 new UsernamePasswordAuthenticationToken(
+                     input.getEmail(),
+                     input.getPassword()
+                 )
+             );
 
-            } catch (Exception e) {
-                // Incrémentation des tentatives échouées et verrouillage du compte si nécessaire
-                increaseFailedAttempts(user);
-                throw new RuntimeException("Échec de l'authentification : " + e.getMessage());
-            }
+             // Réinitialisation des tentatives échouées après une connexion réussie
+             resetFailedAttempts(user);
 
-            // Génération du token JWT
-            String jwtToken = jwtService.generateToken(user);
-            String roleString = user.getRole().name();
+         } catch (BadCredentialsException e) {
+             // Incrémentation des tentatives échouées et verrouillage du compte si nécessaire
+             increaseFailedAttempts(user);
+             throw new AuthenticationFailedException("Échec de l'authentification. Vérifiez vos identifiants.");
+         }
 
-            // Génération du token de rafraîchissement
-            RefreshToken refreshTokenObj = refreshTokenService.createRefreshToken(user);
-            String refreshToken = refreshTokenObj.getToken();
+         // Génération du token JWT
+         String jwtToken = jwtService.generateToken(user);
+         String roleString = user.getRole().name();
 
-            // Retour d'un UserResponseDTO
-            return new UserResponseDTO(
-                user.getFirstname(),
-                user.getLastname(),
-                user.getEmail(),
-                roleString,
-                jwtToken,
-                refreshToken
-            );
+         // Génération du token de rafraîchissement
+         RefreshToken refreshTokenObj = refreshTokenService.createRefreshToken(user);
+         String refreshToken = refreshTokenObj.getToken();
 
-        } catch (Exception e) {
-            throw new RuntimeException("Erreur lors de l'authentification : " + e.getMessage());
-        }
-    }
+         // Retour d'un UserResponseDTO
+         return new UserResponseDTO(
+             user.getFirstname(),
+             user.getLastname(),
+             user.getEmail(),
+             roleString,
+             jwtToken,
+             refreshToken
+         );
+
+     } catch (UserNotFoundException | AccountLockedException | AuthenticationFailedException e) {
+         // Rejeter l'exception spécifique capturée
+         throw e;
+     } catch (Exception e) {
+         // Gestion des autres erreurs inattendues
+         throw new RuntimeException("Erreur lors de l'authentification : " + e.getMessage());
+     }
+ }
+
     
     
 //---------------------------- INCREASE FAILED ATTEMPS ----------------------------
 
 
-    // Augmentation du nombre de tentatives échouées et verrouillage du compte si nécessaire.
-    // @param user Utilisateur dont les tentatives échouées sont incrémentées.
-
-    private void increaseFailedAttempts(User user) {
-        int newFailAttempts = user.getFailedAttempts() + 1;
-        user.setFailedAttempts(newFailAttempts);
-        if (newFailAttempts >= MAX_FAILED_ATTEMPTS) {
-            lockAccount(user);
-        }
-        userRepository.save(user);
-    }
+ private void increaseFailedAttempts(User user) {
+	    int newFailAttempts = user.getFailedAttempts() + 1;
+	    user.setFailedAttempts(newFailAttempts);
+	    if (newFailAttempts >= MAX_FAILED_ATTEMPTS) {
+	        lockAccount(user);
+	    }
+	    userRepository.save(user);
+	}
 
   //----------------------------- RESET FAILED ATTEMPS -----------------------------
     
@@ -209,6 +232,9 @@ public class AuthenticationService {
     // @param user Utilisateur dont le compte est verrouillé.
     
     private void lockAccount(User user) {
+        if (user == null) {
+            throw new UserNotFoundException("Utilisateur non trouvé pour verrouillage.");
+        }
         user.setAccountLocked(true);
         user.setLockTime(LocalDateTime.now());
         userRepository.save(user);
@@ -222,6 +248,9 @@ public class AuthenticationService {
      // @return true si la durée de verrouillage est expirée, false sinon.
      
     private boolean unlockTimeExpired(User user) {
+        if (user.getLockTime() == null) {
+            throw new RuntimeException("Le temps de verrouillage n'est pas défini pour cet utilisateur.");
+        }
         return ChronoUnit.MINUTES.between(user.getLockTime(), LocalDateTime.now()) >= LOCK_TIME_DURATION;
     }
 
@@ -233,6 +262,9 @@ public class AuthenticationService {
     // @param user Utilisateur dont le compte est déverrouillé.
 
     private void unlockAccount(User user) {
+        if (user == null) {
+            throw new UserNotFoundException("Utilisateur non trouvé pour déverrouillage.");
+        }
         user.setAccountLocked(false);
         user.setFailedAttempts(0);
         user.setLockTime(null);
@@ -266,10 +298,10 @@ public class AuthenticationService {
                         token // Fournit le même token de rafraîchissement pour le client
                     ));
             } else {
-                return ResponseEntity.status(403).body("Token de rafraîchissement expiré");
+                throw new InvalidTokenException("Token de rafraîchissement expiré.");
             }
         } else {
-            return ResponseEntity.status(403).body("Token de rafraîchissement invalide");
+            throw new InvalidTokenException("Token de rafraîchissement invalide.");
         }
     }
-}
+    }

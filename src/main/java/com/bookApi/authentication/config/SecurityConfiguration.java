@@ -51,12 +51,12 @@ public class SecurityConfiguration {
             	// Autorisation de toutes les requêtes OPTIONS
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll() 
                 .requestMatchers(
-                    "/api/auth/forgot-password",
+                    "/api/user/forgot-password",
                     "/api/user/signup", 
                     "/api/user/login", 
                     "/api/user/verify", 
-                    "/api/auth/verify",
-                    "/api/auth/reset-password"
+                    "/api/user/verify",
+                    "/api/user/reset-password"
                     
                  // Autorisation des requêtes vers ces endpoints
                 ).permitAll() 

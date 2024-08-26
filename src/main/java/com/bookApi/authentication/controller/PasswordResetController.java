@@ -13,12 +13,15 @@ import com.bookApi.authentication.DTO.ChangePasswordRequestDTO;
 import com.bookApi.authentication.DTO.RequestResetPasswordDTO;
 import com.bookApi.authentication.DTO.ResetPasswordDTO;
 import com.bookApi.authentication.service.PasswordResetService;
+import com.bookApi.exception.UserNotFoundException;
 
 import java.util.logging.Logger;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.logging.Level;
 
 @RestController
-@RequestMapping("/api/auth")
+@RequestMapping("/api/user")
 public class PasswordResetController {
 
     private final PasswordResetService passwordResetService;
@@ -36,18 +39,22 @@ public class PasswordResetController {
     
     @PostMapping("/forgot-password")
     public ResponseEntity<String> forgotPassword(@RequestBody RequestResetPasswordDTO request) {
-    	
+        
         // Récupération de l'email depuis l'objet request
-    	String email = request.getEmail(); 
+        String email = request.getEmail(); 
         logger.info("Demande de réinitialisation de mot de passe reçue pour : " + email);
 
         try {
             // Traitement de la demande de réinitialisation
-        	passwordResetService.requestPasswordReset(email); 
+            passwordResetService.requestPasswordReset(email); 
             return ResponseEntity.ok("Lien de réinitialisation de mot de passe envoyé");
+        } catch (UserNotFoundException e) {
+            // Capturer et gérer l'exception UserNotFoundException
+            logger.log(Level.WARNING, "Utilisateur non trouvé pour l'email : " + email, e);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Utilisateur non trouvé pour l'email fourni.");
         } catch (Exception e) {
             logger.log(Level.SEVERE, "Échec du traitement de la demande de réinitialisation de mot de passe", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Échec du traitement de la demande");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Échec du traitement de la demande.");
         }
     }
     
@@ -58,17 +65,21 @@ public class PasswordResetController {
     // @return ResponseEntity<String> contenant un message de confirmation ou d'erreur
     
     @PostMapping("/reset-password")
-    public ResponseEntity<String> resetPassword(@RequestBody ResetPasswordDTO resetPasswordDTO) {
+    public ResponseEntity<Map<String, String>> resetPassword(@RequestBody ResetPasswordDTO resetPasswordDTO) {
         logger.info("Demande de réinitialisation de mot de passe reçue avec le token : " + resetPasswordDTO.getToken());
 
         try {
-            // Réinitialisation du mot de passe
-        	passwordResetService.resetPassword(resetPasswordDTO.getToken(), resetPasswordDTO.getNewPassword()); 
-            return ResponseEntity.ok("Mot de passe réinitialisé");
+            passwordResetService.resetPassword(resetPasswordDTO.getToken(), resetPasswordDTO.getNewPassword());
+            Map<String, String> response = new HashMap<>();
+            response.put("message", "Mot de passe réinitialisé avec succès");
+            return ResponseEntity.ok(response);
         } catch (RuntimeException e) {
             logger.log(Level.SEVERE, "Échec de la réinitialisation du mot de passe : " + e.getMessage(), e);
-            return ResponseEntity.badRequest().body(e.getMessage());
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("message", "Erreur lors de la réinitialisation du mot de passe : " + e.getMessage());
+            return ResponseEntity.badRequest().body(errorResponse);
         }
+        
     }
     
     //------------------- CHANGEMENT DE MOT DE PASSE (EN ETANT IDENTIFIE) ----------------------
