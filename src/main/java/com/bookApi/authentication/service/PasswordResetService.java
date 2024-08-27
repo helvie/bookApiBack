@@ -52,7 +52,7 @@ public class PasswordResetService {
             tokenRepository.save(resetToken);
         }
 
-        String resetLink = "http://localhost:4200/auth/reset-password?token=" + resetToken.getToken();  // Génération du lien de réinitialisation
+        String resetLink = "http://localhost:4200/auth/reset-password?token=" + resetToken.getToken()+"&email=" + email;  // Génération du lien de réinitialisation
         emailService.sendPasswordResetEmail(user.getEmail(), user.getFirstname(), resetLink); 
     }
     

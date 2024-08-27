@@ -15,11 +15,11 @@ import com.bookApi.entity.User;
 import com.bookApi.repository.UserRepository;
 
 @Configuration
-public class ApplicationConfiguration {
+public class AuthAppConfiguration {
 
     private final UserRepository userRepository;
 
-    public ApplicationConfiguration(UserRepository userRepository) {
+    public AuthAppConfiguration(UserRepository userRepository) {
         this.userRepository = userRepository;
     }
 

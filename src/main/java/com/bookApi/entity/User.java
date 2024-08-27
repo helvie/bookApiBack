@@ -52,7 +52,7 @@ public class User implements UserDetails {
     private Date updatedAt;
 
     @OneToMany(mappedBy = "requester")
-    private List<RequestedBook> requestedBooks;
+    private List<BookRequested> requestedBooks;
 
     @OneToMany(mappedBy = "owner")
     private List<BookToLend> booksToLend;
@@ -114,11 +114,11 @@ public class User implements UserDetails {
         this.password = password;
     }
 
-    public List<RequestedBook> getRequestedBooks() {
+    public List<BookRequested> getRequestedBooks() {
         return requestedBooks;
     }
 
-    public void setRequestedBooks(List<RequestedBook> requestedBooks) {
+    public void setRequestedBooks(List<BookRequested> requestedBooks) {
         this.requestedBooks = requestedBooks;
     }
 

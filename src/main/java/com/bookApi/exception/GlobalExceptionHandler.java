@@ -36,6 +36,7 @@ public class GlobalExceptionHandler {
     // Exception générale pour capturer toutes les autres exceptions non gérées
     @ExceptionHandler(Exception.class)
     public ResponseEntity<String> handleGenericException(Exception ex) {
+    	ex.printStackTrace();
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Une erreur inattendue s'est produite.");
     }
     

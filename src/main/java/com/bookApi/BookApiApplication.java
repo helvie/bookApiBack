@@ -12,9 +12,9 @@ public class BookApiApplication {
 		
         // Chargement des variables d'environnement depuis le fichier .env
         Dotenv dotenv = Dotenv.load();
+        System.setProperty("EXTERNAL_BOOK_API_URL", dotenv.get("EXTERNAL_BOOK_API_URL"));
         System.setProperty("MAIL_USERNAME", dotenv.get("MAIL_USERNAME"));
         System.setProperty("MAIL_PASSWORD", dotenv.get("MAIL_PASSWORD"));
-        System.setProperty("EXTERNAL_API_KEY", dotenv.get("EXTERNAL_API_KEY"));
         System.setProperty("JWT_SECRET_KEY", dotenv.get("JWT_SECRET_KEY"));
         System.setProperty("DATABASE_USERNAME", dotenv.get("DATABASE_USERNAME"));
 
